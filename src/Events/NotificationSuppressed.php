@@ -1,6 +1,6 @@
 <?php
 
-namespace LiranCo\NotificationSubscriptions\Events;
+namespace Lacodix\LaravelNotificationSubscriptions\Events;
 
 use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Queue\SerializesModels;

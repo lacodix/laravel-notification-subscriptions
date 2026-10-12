@@ -1,7 +1,7 @@
 {
-    "name": "liran-co/laravel-notification-subscriptions",
+    "name": "lacodix/laravel-notification-subscriptions",
     "description": "Notification subscription management.",
-    "homepage": "https://github.com/liran-co/laravel-notification-subscriptions",
+    "homepage": "https://github.com/lacodix/laravel-notification-subscriptions",
     "keywords": [
         "laravel",
         "subscription",
@@ -14,24 +14,57 @@
         {
             "name": "Liran Cohen",
             "email": "l@liran.co"
+        },
+        {
+            "name": "Dominik Müller",
+            "email": "dominik@lacodix.de",
+            "role": "Maintainer"
         }
     ],
     "require": {
         "php": "^7.2.5|^8.0|^8.1",
-        "laravel/framework": "^6.0|^7.0|^8.0|^9.0|^10.0|^11.0"
+        "laravel/framework": "^6.0|^7.0|^8.0|^9.0|^10.0|^11.0|^12.0|^13.0"
     },
     "autoload": {
         "psr-4": {
-            "LiranCo\\NotificationSubscriptions\\": "src"
+            "Lacodix\\LaravelNotificationSubscriptions\\": "src"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "LiranCo\\NotificationSubscriptions\\NotificationSubscriptionsServiceProvider"
+                "Lacodix\\LaravelNotificationSubscriptions\\NotificationSubscriptionsServiceProvider"
             ]
         }
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "support": {
+        "issues": "https://github.com/lacodix/laravel-notification-subscriptions/issues",
+        "source": "https://github.com/lacodix/laravel-notification-subscriptions"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "larastan/larastan": "^3.0",
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "phpunit/phpunit": "^11.5.50"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Lacodix\\LaravelNotificationSubscriptions\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "format": "vendor/bin/php-cs-fixer fix",
+        "csfixer:test": "vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "phpstan:test": "vendor/bin/phpstan analyse --memory-limit=1G",
+        "quality": [
+            "@csfixer:test",
+            "@phpstan:test"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    }
 }

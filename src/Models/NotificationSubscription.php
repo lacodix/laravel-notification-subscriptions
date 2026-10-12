@@ -1,9 +1,12 @@
 <?php
 
-namespace LiranCo\NotificationSubscriptions\Models;
+namespace Lacodix\LaravelNotificationSubscriptions\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $unsubscribed_at
+ */
 class NotificationSubscription extends Model
 {
     public $incrementing = true;

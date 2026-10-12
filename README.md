@@ -2,15 +2,30 @@
 
 Laravel Notification Subscriptions is a package that hooks directly into Laravel's existing [notification system](https://laravel.com/docs/master/notifications) and adds functionality to manage user subscriptions to your app's notifications and suppress them automatically when they shouldn't be sent. You can subscribe and unsubscribe users to specific notification channels, create opt-in notifications, and scope your subscriptions by another model.
 
-[![Latest Stable Version](https://poser.pugx.org/liran-co/laravel-notification-subscriptions/v/stable)](https://packagist.org/packages/liran-co/laravel-notification-subscriptions) [![Total Downloads](https://poser.pugx.org/liran-co/laravel-notification-subscriptions/downloads)](https://packagist.org/packages/liran-co/laravel-notification-subscriptions) [![License](https://poser.pugx.org/liran-co/laravel-notification-subscriptions/license)](https://packagist.org/packages/liran-co/laravel-notification-subscriptions)
+[![Latest Stable Version](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/v/stable)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions) [![Total Downloads](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/downloads)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions) [![License](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/license)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions)
+
+Maintained by [Lacodix](https://github.com/lacodix) from
+[Liran Cohen's original package](https://github.com/liran-co/laravel-notification-subscriptions).
+The public namespace is now `Lacodix\LaravelNotificationSubscriptions`. This is a
+breaking change from upstream; applications must update their imports and provider
+references. Original author and MIT attribution are retained.
+This fork has its own Composer identity; it does not declare that it replaces all
+upstream package versions.
 
 ## Installation
 
-To get started, install the `liran-co/laravel-notification-subscriptions` package:
+To get started, install the `lacodix/laravel-notification-subscriptions` package:
 
 ```bash
-composer require liran-co/laravel-notification-subscriptions
+composer require lacodix/laravel-notification-subscriptions
 ```
+
+This command is available after the owner registers the fork on Packagist and
+publishes its first release. For an application migrating from upstream, remove
+the old `liran-co/laravel-notification-subscriptions` dependency before adding the
+Lacodix package and update its namespace references as described below. Laravel
+discovers `Lacodix\LaravelNotificationSubscriptions\NotificationSubscriptionsServiceProvider`
+automatically.
 
 Run the migration to create the `notification_subscriptions` table:
 ```bash
@@ -21,6 +36,23 @@ Optionally publish the configuration file by running and selecting the appropria
 ```bash
 php artisan vendor:publish
 ```
+
+### Upgrading from upstream
+
+Replace every `LiranCo\NotificationSubscriptions` import or fully qualified class
+reference with `Lacodix\LaravelNotificationSubscriptions`, including the
+`HasNotificationSubscriptions` trait, subscription model, events, listeners and any
+manually registered service providers. Class basenames and method signatures stay
+the same; there are no compatibility aliases or legacy autoload roots.
+
+After updating dependencies and imports, clear or rebuild Laravel's event cache
+during deployment with `php artisan event:clear` or `php artisan event:cache`,
+since a stale provider-keyed events cache can leave subscription filtering
+unregistered.
+
+There is no schema or migration change for this namespace rename. Existing
+subscription rows and configuration keys remain unchanged. Application code must
+be updated by its owner; this package setup does not modify consumers.
 
 ## Basic usage
 
@@ -34,7 +66,7 @@ Add the `HasNotificationSubscriptions ` trait to your `User` model:
 
 ```php
 use Illuminate\Database\Eloquent\Model;
-use LiranCo\NotificationSubscriptions\Traits\HasNotificationSubscriptions;
+use Lacodix\LaravelNotificationSubscriptions\Traits\HasNotificationSubscriptions;
 
 class User extends Model
 {
@@ -250,7 +282,7 @@ class InvoicePaid extends Notification
 ```php
 use App\Notifications\InvoicePaid;
 
-$user->notify(new InvoicePaid($invoice, true)); //This will always get sent.
+$user->notify(new InvoicePaid($invoice, true)); //This bypasses subscription checks; other application listeners may still veto.
 ```
 
 ### Excluding channels
@@ -279,5 +311,102 @@ The package uses the following logic to resolve whether or not to send a notific
 
    3b. If there is a record, send the notification based on the status of the subscription (subscribed or unsubscribed).
 
+## Development and compatibility
+
+The runtime manifest retains PHP `^7.2.5|^8.0|^8.1` and Laravel 6–11, and adds
+Laravel 12 and 13. These historical runtime constraints are retained for existing
+applications; the modern development harness requires PHP 8.2 or newer and tests
+the following matrix:
+
+| Laravel | Testbench | PHP | Dependency selection |
+| --- | --- | --- | --- |
+| 11 | 9 | 8.2, 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
+| 12 | 10 | 8.2, 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
+| 13 | 11 | 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
+
+Framework PHP requirements still apply (Laravel 11/12 require PHP 8.2; Laravel 13
+requires PHP 8.3). Historical Laravel 6–10 / PHP 7 lanes are not tested by this CI.
+Lowest lanes select the lowest **resolvable** dependencies under the development
+constraints and Composer's security policy; they do not guarantee each framework's
+initial `.0` release. All lanes require stable dependency releases and retain
+Composer audits and platform checks.
+
+Laravel 11 has ended security support. Its isolated CI manifests contain four
+explicit advisory-ID exceptions for debug-page XSS, signed-URL path confusion and
+email-validation CRLF injection (including a duplicate advisory record). Those
+features are not used by these notification tests. The exceptions are documented
+in `.github/scripts/prepare-test-lane.php`; they do not apply to the distributed
+manifest, Laravel 12/13 or other dependencies. New advisories still fail CI.
+Passing a Laravel 11 compatibility lane is not a claim that Laravel 11 is secure;
+use a maintained Laravel version for production.
+
+```bash
+composer update --prefer-stable
+composer test
+composer quality
+composer format
+node --test .github/scripts/*.test.cjs
+```
+
+Tests use Testbench, in-memory SQLite, the package provider/migrations, and Laravel's
+real notification sender/event dispatcher. Subscription vetoes return `false`;
+allowed notifications return `null` so later application listeners can run and veto.
+Quality uses PHP CS Fixer with conservative PSR-2 rules and Larastan at level 4.
+No development lock file is committed for this library.
+
+## Publishing
+
+The `Run Unit Tests` workflow runs tests and quality checks with read-only permissions
+for pull requests and pushes to `master` or `ci/**`.
+For a push to this repository's `master`, release runs only after every test lane
+and the reusable quality workflow succeed for that exact commit. Release concurrency
+is serialized. A run skips publication if master has since moved.
+
+Version planning uses pinned `rymndhng/release-on-push-action` in dry-run mode with
+the Lacodix default **minor** bump after the first release. Associated PR labels
+`release:major`, `release:minor` and `release:patch` override that default; use only
+one bump label.
+The PR label `norelease` or `[norelease]` in the pushed commit title skips publishing,
+including the first release. GitHub supplies release notes and `GITHUB_TOKEN` is
+sufficient; only the release job requests `contents: write` and `pull-requests: read`.
+
+Back-to-back merges can skip older release runs; only the newest commit and its
+associated PR labels choose the next version. Wait for each release, or put the
+highest required bump label (especially `release:major` for breaking changes) on
+the final PR allowed to publish, and do not mark that PR `norelease`.
+
+The fork inherits tags through `v1.8` but initially has no GitHub releases. The action
+normally starts at `0.0.0` in that case, ignoring tags. The small release helper lifts
+every recognized first-release minor, patch or major plan to a **major** above the
+highest inherited stable tag (two-component tags are normalized with patch zero).
+The breaking public namespace rename requires **`v2.0.0`** with current inherited
+tags, even with a patch or minor label. Unknown plans fail closed. Historical tags
+are preserved, and `norelease` still skips the first publication. Once a stable
+GitHub release exists, the action's normal plan applies with the default minor bump.
+
+The helper refuses tag collisions or a version at/below inherited stable tags,
+checks the target tag before publication, atomically creates it at the CI-validated
+SHA, and creates a stable GitHub release with generated notes. Unexpected bootstrap
+plans, missing baseline tags, or API errors fail closed. If tag creation succeeds
+but release creation fails, the owner must verify that exact tag's SHA and create
+the missing GitHub release for it before retrying; automation never deletes or
+retargets tags. Manual recovery must preserve existing tags and verify their SHAs;
+never attach a release to a different commit or retarget a tag.
+
+Owner setup still required:
+
+1. Approve and merge these changes; enable GitHub Actions and allow the narrowly
+   scoped release token permissions. Configure branch protection to require the
+   test matrix and quality checks.
+2. Register `lacodix/laravel-notification-subscriptions` on Packagist against this
+   GitHub repository, and configure its GitHub update integration.
+3. Authorize the first master release and verify the resulting tag/release SHA,
+   generated notes and Packagist synchronization. Before authorizing it, use
+   `norelease` on the setup PR if publication should wait.
+
+Local setup does not publish, register Packagist, change GitHub settings or validate
+remote workflow execution. Release automation activates only after an owner-approved
+merge to master; tests and quality checks also run on pull requests and `ci/**` pushes.
+
 ## License
-Released under the [MIT](https://choosealicense.com/licenses/mit/) license. See [LICENSE](LICENSE.md) for more information.
+Released under the [MIT](https://choosealicense.com/licenses/mit/) license. See [LICENSE](LICENSE) for more information.
