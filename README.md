@@ -4,8 +4,8 @@ Laravel Notification Subscriptions is a package that hooks directly into Laravel
 
 [![Latest Stable Version](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/v/stable)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions) [![Total Downloads](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/downloads)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions) [![License](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/license)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions)
 
-Maintained by [Lacodix](https://github.com/lacodix) from
-[Liran Cohen's original package](https://github.com/liran-co/laravel-notification-subscriptions).
+This is a fork of [liran-co/laravel-notification-subscriptions](https://github.com/liran-co/laravel-notification-subscriptions),
+originally authored by Liran Cohen and maintained here by [Lacodix](https://github.com/lacodix).
 The public namespace is now `Lacodix\LaravelNotificationSubscriptions`. This is a
 breaking change from upstream; applications must update their imports and provider
 references. Original author and MIT attribution are retained.
@@ -39,20 +39,14 @@ php artisan vendor:publish
 
 ### Upgrading from upstream
 
-Replace every `LiranCo\NotificationSubscriptions` import or fully qualified class
-reference with `Lacodix\LaravelNotificationSubscriptions`, including the
-`HasNotificationSubscriptions` trait, subscription model, events, listeners and any
-manually registered service providers. Class basenames and method signatures stay
-the same; there are no compatibility aliases or legacy autoload roots.
-
-After updating dependencies and imports, clear or rebuild Laravel's event cache
-during deployment with `php artisan event:clear` or `php artisan event:cache`,
-since a stale provider-keyed events cache can leave subscription filtering
-unregistered.
-
-There is no schema or migration change for this namespace rename. Existing
-subscription rows and configuration keys remain unchanged. Application code must
-be updated by its owner; this package setup does not modify consumers.
+To migrate, replace the Composer dependency `liran-co/laravel-notification-subscriptions`
+with `lacodix/laravel-notification-subscriptions` and change imports, fully qualified
+class names and manual provider references from `LiranCo\NotificationSubscriptions`
+to `Lacodix\LaravelNotificationSubscriptions`. No compatibility aliases are
+provided; the schema, subscription rows and configuration stay unchanged. After
+upgrading dependencies and imports, clear or rebuild Laravel's event cache with
+`php artisan event:clear` or `php artisan event:cache` so a stale provider-keyed
+cache cannot leave subscription filtering unregistered.
 
 ## Basic usage
 
