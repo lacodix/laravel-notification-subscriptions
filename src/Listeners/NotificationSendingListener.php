@@ -1,25 +1,25 @@
 <?php
 
-namespace LiranCo\NotificationSubscriptions\Listeners;
+namespace Lacodix\LaravelNotificationSubscriptions\Listeners;
 
 use Illuminate\Notifications\Events\NotificationSending;
-use LiranCo\NotificationSubscriptions\Events\NotificationSuppressed;
-use LiranCo\NotificationSubscriptions\Traits\HasNotificationSubscriptions;
+use Lacodix\LaravelNotificationSubscriptions\Events\NotificationSuppressed;
+use Lacodix\LaravelNotificationSubscriptions\Traits\HasNotificationSubscriptions;
 
 class NotificationSendingListener
 {
     public function handle(NotificationSending $event)
     {
         if (!in_array(HasNotificationSubscriptions::class, class_uses_recursive($event->notifiable))) {
-            return $event;
+            return;
         }
 
         if (in_array($event->channel, config('notification-subscriptions.excluded_channels'))) {
-            return $event;
+            return;
         }
 
         if ($event->notification->ignoreSubscriptions ?? false) {
-            return $event;
+            return;
         }
 
         $model = null;
@@ -39,6 +39,6 @@ class NotificationSendingListener
             return false;
         }
 
-        return $event;
+        return;
     }
 }

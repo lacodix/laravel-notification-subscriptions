@@ -1,6 +1,6 @@
 <?php
 
-namespace LiranCo\NotificationSubscriptions\Providers;
+namespace Lacodix\LaravelNotificationSubscriptions\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
@@ -8,7 +8,7 @@ class EventServiceProvider extends ServiceProvider
 {
     protected $listen = [
         'Illuminate\Notifications\Events\NotificationSending' => [
-            'LiranCo\NotificationSubscriptions\Listeners\NotificationSendingListener',
+            'Lacodix\LaravelNotificationSubscriptions\Listeners\NotificationSendingListener',
         ],
     ];
 

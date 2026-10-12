@@ -1,6 +1,6 @@
 <?php
 
-namespace LiranCo\NotificationSubscriptions;
+namespace Lacodix\LaravelNotificationSubscriptions;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +22,6 @@ class NotificationSubscriptionsServiceProvider extends ServiceProvider
             'notification-subscriptions'
         );
 
-        $this->app->register(\LiranCo\NotificationSubscriptions\Providers\EventServiceProvider::class);
+        $this->app->register(\Lacodix\LaravelNotificationSubscriptions\Providers\EventServiceProvider::class);
     }
 }

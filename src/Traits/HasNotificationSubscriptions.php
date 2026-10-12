@@ -1,8 +1,8 @@
 <?php
 
-namespace LiranCo\NotificationSubscriptions\Traits;
+namespace Lacodix\LaravelNotificationSubscriptions\Traits;
 
-use LiranCo\NotificationSubscriptions\Models\NotificationSubscription;
+use Lacodix\LaravelNotificationSubscriptions\Models\NotificationSubscription;
 
 trait HasNotificationSubscriptions
 {
