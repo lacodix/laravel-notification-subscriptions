@@ -1,338 +1,337 @@
 # Laravel Notification Subscriptions
 
-Laravel Notification Subscriptions is a package that hooks directly into Laravel's existing [notification system](https://laravel.com/docs/master/notifications) and adds functionality to manage user subscriptions to your app's notifications and suppress them automatically when they shouldn't be sent. You can subscribe and unsubscribe users to specific notification channels, create opt-in notifications, and scope your subscriptions by another model.
+Manage per-recipient notification preferences in Laravel: subscribe or unsubscribe
+by channel, require opt-in, and scope preferences to another Eloquent model. The
+package filters Laravel's normal notification sending flow; it does not provide a
+settings UI.
 
 [![Latest Stable Version](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/v/stable)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions) [![Total Downloads](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/downloads)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions) [![License](https://poser.pugx.org/lacodix/laravel-notification-subscriptions/license)](https://packagist.org/packages/lacodix/laravel-notification-subscriptions)
 
-This is a fork of [liran-co/laravel-notification-subscriptions](https://github.com/liran-co/laravel-notification-subscriptions),
-originally authored by Liran Cohen and maintained here by [Lacodix](https://github.com/lacodix).
-The public namespace is now `Lacodix\LaravelNotificationSubscriptions`. This is a
-breaking change from upstream; applications must update their imports and provider
-references. Original author and MIT attribution are retained.
-This fork has its own Composer identity; it does not declare that it replaces all
-upstream package versions.
+A fork of [liran-co/laravel-notification-subscriptions](https://github.com/liran-co/laravel-notification-subscriptions),
+originally authored by Liran Cohen and maintained by [Lacodix](https://github.com/lacodix).
+Original author and MIT attribution are retained. The package name is
+`lacodix/laravel-notification-subscriptions`, and its public namespace is
+`Lacodix\LaravelNotificationSubscriptions`.
 
-## Installation
+## Requirements and installation
 
-To get started, install the `lacodix/laravel-notification-subscriptions` package:
+Requires PHP `^8.2` (>=8.2 and <9) and Laravel `^11.0|^12.0|^13.0`.
+Laravel 13 requires PHP >=8.3. Laravel 11 compatibility does not imply current
+security support; use a maintained Laravel version for production. Older
+environments need a compatible prior package version.
 
 ```bash
 composer require lacodix/laravel-notification-subscriptions
-```
-
-This command is available after the owner registers the fork on Packagist and
-publishes its first release. For an application migrating from upstream, remove
-the old `liran-co/laravel-notification-subscriptions` dependency before adding the
-Lacodix package and update its namespace references as described below. Laravel
-discovers `Lacodix\LaravelNotificationSubscriptions\NotificationSubscriptionsServiceProvider`
-automatically.
-
-Run the migration to create the `notification_subscriptions` table:
-```bash
 php artisan migrate
 ```
 
-Optionally publish the configuration file by running and selecting the appropriate provider option:
+Laravel auto-discovers the package provider. The migration creates the
+`notification_subscriptions` table. To optionally publish
+`config/notification-subscriptions.php`, select the provider explicitly:
+
 ```bash
-php artisan vendor:publish
+php artisan vendor:publish --provider='Lacodix\LaravelNotificationSubscriptions\NotificationSubscriptionsServiceProvider'
 ```
 
-### Upgrading from upstream
+## Enable preferences on your user model
 
-To migrate, replace the Composer dependency `liran-co/laravel-notification-subscriptions`
-with `lacodix/laravel-notification-subscriptions` and change imports, fully qualified
-class names and manual provider references from `LiranCo\NotificationSubscriptions`
-to `Lacodix\LaravelNotificationSubscriptions`. No compatibility aliases are
-provided; the schema, subscription rows and configuration stay unchanged. After
-upgrading dependencies and imports, clear or rebuild Laravel's event cache with
-`php artisan event:clear` or `php artisan event:cache` so a stale provider-keyed
-cache cannot leave subscription filtering unregistered.
-
-## Basic usage
-
-This package uses a [Listener](https://laravel.com/docs/master/events) to listen for any notifications that get sent in your application. When a notification gets triggered, the package checks to see if the notification should actually be sent according to the user's subscriptions. If not, the notification is suppressed.
-
-### Getting started
-
-This package assumes you've already setup Laravel's notification system. If you haven't [read the docs](https://laravel.com/docs/master/notifications) to get started.
-
-Add the `HasNotificationSubscriptions ` trait to your `User` model:
-
-```php
-use Illuminate\Database\Eloquent\Model;
-use Lacodix\LaravelNotificationSubscriptions\Traits\HasNotificationSubscriptions;
-
-class User extends Model
-{
-    use HasNotificationSubscriptions;
-
-    // ...
-}
-```
-
-### Unsubscribing
-
-To unsubscribe a user from a specific `Notification`, pass the class name of that notification to the `unsubscribe` function.
-
-```php
-use App\Notifications\InvoicePaid;
-
-$user->unsubscribe(InvoicePaid::class); //You can also pass a string, but this is the preferred method.
-```
-
-The above will unsubscribe the user from all channels. You can unsubscribe a user from a specific channel by passing the channel name as the second parameter:
-
-```php
-use App\Notifications\InvoicePaid;
-
-$user->unsubscribe(InvoicePaid::class, 'mail');
-```
-
-Now, whenever an `InvoicePaid` notification is sent, the package will automatically detect that the user has unsubscribed and suppress the notification. For example:
-
-```php
-use App\Notifications\InvoicePaid;
-
-$user->notify(new InvoicePaid($invoice)); //This won't get sent.
-```
-
-### Opt-in notifications
-
-By default, all notifications will be sent if no subscribe/unsubscribe record is found. This means you don't need to explicitly **subscribe** a user to a notification, you only need to **unsubscribe** them.
-
-In some cases, however, you'd like to create opt-in notifications. To do so, modify your notification class and add a function called `getOptInSubscriptions`:
+Add both Laravel's `Notifiable` and the package's `HasNotificationSubscriptions`
+traits to your Eloquent notifiable model. Keep your existing model configuration;
+this is a minimal example:
 
 ```php
 <?php
 
-namespace App\Notifications;
+namespace App\Models;
 
-// ...
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Lacodix\LaravelNotificationSubscriptions\Traits\HasNotificationSubscriptions;
 
-class InvoicePaid extends Notification
+class User extends Authenticatable
 {
-    public function via($notifiable)
-    {
-        return ['mail', 'sms'];
-    }
-
-    public function getOptInSubscriptions()
-    {
-        return ['sms'];
-    }
+    use Notifiable;
+    use HasNotificationSubscriptions;
 }
 ```
 
-The package will now **always** suppress the `sms` channel unless the user is explicitly subscribed to it.
+Notifiables without `HasNotificationSubscriptions` are not filtered by this
+package. Configure your delivery channels using Laravel's
+[notification documentation](https://laravel.com/docs/13.x/notifications).
 
-### Subscribing
+## Subscribe, unsubscribe and reset
 
-To subscribe a user to an opt-in notification or resubscribe them to a previously unsubscribed notification:
-
-```php
-use App\Notifications\InvoicePaid;
-
-$user->subscribe(InvoicePaid::class);
-```
-
-Similarly, you can apply a channel:
+Pass the notification's exact class name. Examples below use your application's
+`App\Notifications\InvoicePaid`; a complete illustrative implementation appears in
+[Model scoping](#model-scoping). Lookup IDs are examples for existing application
+records.
 
 ```php
+use App\Models\User;
 use App\Notifications\InvoicePaid;
 
-$user->subscribe(InvoicePaid::class, 'mail');
+$user = User::findOrFail(1);
+
+$user->unsubscribe(InvoicePaid::class);         // Global wildcard: all channels.
+$user->subscribe(InvoicePaid::class, 'mail');   // Explicit mail exception.
+$user->unsubscribe(InvoicePaid::class, 'mail'); // Change only the mail rule.
+$user->subscribe(InvoicePaid::class);           // Change the wildcard rule.
 ```
 
-### Resetting subscriptions
+An exact channel rule takes priority over `'*'`. Changing a wildcard does not
+remove channel-specific rules: in this example, the final wildcard subscription
+still leaves mail unsubscribed. Subscribe/unsubscribe reuse an existing exact
+rule instead of creating a new row each time.
 
-This package makes no assumptions about how your application manages notifications and subscriptions. For example, if you unsubscribe a user from a particular notification channel, and later subscribe them to all channels, the previous record won't be deleted. To reset the notifications on a user:
+Reset removes the requested notification's rules in the selected scope and returns
+the notifiable, so calls can be chained:
 
 ```php
 use App\Notifications\InvoicePaid;
 
 $user->resetSubscriptions(InvoicePaid::class);
-```
-
-You can chain the `resetSubscriptions`:
-
-```php
-use App\Notifications\InvoicePaid;
-
 $user->resetSubscriptions(InvoicePaid::class)->subscribe(InvoicePaid::class);
 ```
 
-### Retrieving subscriptions
-
-You can get a user's subscriptions by using the `notificationSubscriptions()` relation:
-
-```php
-$user->notificationSubscriptions();
-```
+Without a model argument, reset removes only global rules; scoped rules remain.
+Without a matching preference, delivery is allowed unless the channel is opt-in.
 
 ## Model scoping
 
-In some applications, you need to unsubscribe users from notifications related to a certain model. For example, if a user is a part of multiple organizations, they may only want to unsubscribe from a single organization. You can accomplish this by applying a model scope to your notifications:
-
-```php
-use App\Models\Organization;
-use App\Notifications\InvoicePaid;
-
-//...
-
-$organization = Organization::find(1);
-
-$user->unsubscribe(InvoicePaid::class, '*', $organization);
-```
-
-Or, for a single channel:
-
-```php
-use App\Models\Organization;
-use App\Notifications\InvoicePaid;
-
-//...
-
-$organization = Organization::find(1);
-
-$user->unsubscribe(InvoicePaid::class, 'mail', $organization);
-```
-
-Next, we need a way to retrieve the `Organization` when your notification is sent. Add a function called `getSubscriptionModel` to your notification class to tell it how to retrieve the model:
+A scope lets a recipient keep different preferences for individual organizations,
+invoices or other Eloquent models. The following illustrative notification uses
+your application's persisted `App\Models\Organization` model. Replace the message
+and channel implementation with your application's requirements:
 
 ```php
 <?php
 
 namespace App\Notifications;
 
-// ...
+use App\Models\Organization;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
 
 class InvoicePaid extends Notification
 {
-    public function __construct(Invoice $invoice)
-    {
-        $this->invoice = $invoice;
+    public function __construct(
+        public Organization $organization,
+        public array $optIn = [],
+        public bool $ignoreSubscriptions = false,
+    ) {
     }
 
-    public function getSubscriptionModel($notifiable)
+    public function via($notifiable): array
     {
-        return $this->invoice->organization;
+        return ['mail'];
+    }
+
+    public function toMail($notifiable): MailMessage
+    {
+        return (new MailMessage())
+            ->subject('Invoice paid')
+            ->line('An invoice for your organization has been paid.');
+    }
+
+    public function getSubscriptionModel($notifiable): ?Model
+    {
+        return $this->organization;
+    }
+
+    public function getOptInSubscriptions(): array
+    {
+        return $this->optIn;
     }
 }
 ```
 
-Now, when this notification gets sent, it will check for the model scope and apply it if necessary. You can add your own logic to `getSubscriptionModel` and even return `null` in cases you don't want to scope the subscription.
-
-### Resetting scoped subscriptions
-
-To reset the notifications on a scoped subscription:
+`getSubscriptionModel($notifiable)` returns the Eloquent model to use as a scope,
+or `null` for global preferences. Rules store the concrete `get_class($model)`
+and its `id` property (`optional($model)->id`), not a morph alias or custom primary
+key returned by `getKey()`.
 
 ```php
 use App\Models\Organization;
+use App\Models\User;
 use App\Notifications\InvoicePaid;
 
-//...
+$user = User::findOrFail(1);
+$organization = Organization::findOrFail(1);
 
-$organization = Organization::find(1);
+$user->unsubscribe(InvoicePaid::class, '*', $organization);
+$user->subscribe(InvoicePaid::class, 'mail', $organization);
+$user->notify(new InvoicePaid($organization)); // Mail is allowed by the scoped exception.
 
 $user->resetSubscriptions(InvoicePaid::class, $organization);
 ```
 
-### Retrieving scoped subscriptions
+The scoped reset removes only that model's rules. Global rules and other scopes
+remain; global preferences become the fallback for this scope.
 
-Retrieve subscriptions related to a certain model:
+## Opt-in channels
 
-```php
-use App\Models\Organization;
-
-//...
-
-$organization = Organization::find(1);
-
-$user->notificationSubscriptions()->model($organization);
-```
-
-## Advanced usage
-
-### Ignoring subscriptions
-
-If you'd like the package to ignore your notification entirely, and skip any suppressions, set the public `$ignoreSubscriptions` property to true in your notification class:
-
-```php
-<?php
-
-namespace App\Notifications;
-
-// ...
-
-class InvoicePaid extends Notification
-{
-    public function __construct(Invoice $invoice, $ignore = false)
-    {
-        $this->ignoreSubscriptions = $ignore;
-    }
-}
-```
+Laravel's normal `notify()` and `Notification::send()` flow reads
+`getOptInSubscriptions()` with no arguments. It must return the channels that need
+an explicit matching subscription. In the illustrative notification above, the
+constructor's `optIn` array supplies that list:
 
 ```php
 use App\Notifications\InvoicePaid;
 
-$user->notify(new InvoicePaid($invoice, true)); //This bypasses subscription checks; other application listeners may still veto.
+$notification = new InvoicePaid($organization, optIn: ['mail']);
+$user->resetSubscriptions(InvoicePaid::class, $organization);
+$user->resetSubscriptions(InvoicePaid::class);
+$user->notify($notification); // Suppressed: no mail or wildcard subscription exists.
+
+$user->subscribe(InvoicePaid::class, 'mail', $organization);
+$user->notify($notification); // Allowed by the scoped mail subscription.
 ```
 
-### Excluding channels
+A matching wildcard or global subscription can also satisfy opt-in according to
+the precedence below. Direct `isSubscribed()` checks require you to pass the opt-in
+list explicitly; they do not construct a notification or call its methods.
 
-You may want to exclude certain channels from being considered when checking for unsubscribes. By default, we already exclude the `database` channel. You can configure this in the configuration file:
+## Preference precedence
+
+For each recipient, notification class and channel, the first matching rule wins:
+
+1. Scoped exact channel.
+2. Scoped wildcard (`'*'`).
+3. Global exact channel.
+4. Global wildcard (`'*'`).
+5. No rule: allow, unless the channel is opt-in.
+
+Unscoped notifications start at the global rules. A global unsubscribe suppresses
+scoped notifications when no scoped rule exists; an explicit scoped subscription
+can override it. A global subscription can satisfy an opt-in channel. Rules for
+other recipients, notification types or model scopes are never used as fallback.
+
+Use exact stored notification, channel and scope-class names matching the
+notification class, `via()` channel values and `get_class($model)`. Hand-written
+values that depend on database collation (such as different case or trailing
+spaces) are not guaranteed equivalent between SQL and loaded-collection matching.
+
+## Read preferences and eager-load
+
+```php
+use App\Notifications\InvoicePaid;
+
+// Resolved decision, including wildcard/global fallback and an explicit opt-in list.
+$allowed = $user->isSubscribed(InvoicePaid::class, 'mail', $organization, ['mail']);
+
+// Exact tuple only: returns a NotificationSubscription or null, with no fallback.
+$rule = $user->findSubscription(InvoicePaid::class, 'mail', $organization);
+
+// Query all preferences, or just this scope, using the Eloquent relation.
+$allRules = $user->notificationSubscriptions()->get();
+$scopedRules = $user->notificationSubscriptions()->model($organization)->get();
+```
+
+For multiple recipients, eager-load the **complete** relation:
+
+```php
+use App\Models\User;
+use App\Notifications\InvoicePaid;
+
+$users = User::with('notificationSubscriptions')->get();
+
+foreach ($users as $user) {
+    $allowed = $user->isSubscribed(InvoicePaid::class, 'mail');
+}
+```
+
+Loaded `findSubscription()` and `isSubscribed()` reads perform no additional SQL,
+including misses and empty collections. Unloaded reads query the requested rules
+without loading the whole relation.
+
+- Load all rows and columns for the current notifiable. Filtered/partially selected
+  collections are not a complete preference set. Reload or unset copied/reattached
+  relations after `replicate()` or mixed-model-class collection loads.
+- `subscribe()`, `unsubscribe()`, `createSubscription()` and `resetSubscriptions()`
+  invalidate the relation on the instance they modify. Subsequent package reads
+  query current preferences. With strict lazy-loading prevention, call
+  `$user->load('notificationSubscriptions')` before accessing the relation property.
+- Other instances keep their cached collections. After external writes, including
+  direct subscription-record changes, reload with
+  `$user->load('notificationSubscriptions')` before reading preferences.
+
+Prefer subscribe/unsubscribe for preference changes. `createSubscription()` is a
+direct row creation API, not an upsert.
+
+## Bypass filtering and observe suppression
+
+The default excluded channel is `database`. Change
+`config/notification-subscriptions.php` if needed:
 
 ```php
 <?php
 
 return [
-	
-	'excluded_channels' => ['database'],
-
+    'excluded_channels' => ['database'],
 ];
 ```
 
-## Resolution logic
+Or bypass subscription checks for a notification using its declared public
+`ignoreSubscriptions` property. The example class above exposes it as a constructor
+argument:
 
-The package uses the following logic to resolve whether or not to send a notification:
+```php
+use App\Notifications\InvoicePaid;
 
-1. If `channel` is in `excluded_channels`, send the notification.
-2. If the notification has the public property `$ignoreSubscriptions` set to `true`, send the notification.
-3. Attempt to retrieve a record for the particular channel, if none is found, attempt to retrieve a record for all channels (i.e. `"*"`).
+$user->notify(new InvoicePaid($organization, ignoreSubscriptions: true));
+```
 
-   3a. If there is no record, and the channel is not opt-in, send the notification.
+Excluded channels and `ignoreSubscriptions` skip only this package's filtering.
+Other application [event listeners](https://laravel.com/docs/13.x/events) can still
+veto delivery. `isSubscribed()` itself checks preferences; these bypasses belong
+to the sending listener.
 
-   3b. If there is a record, send the notification based on the status of the subscription (subscribed or unsubscribed).
+When this package vetoes a channel, it emits `NotificationSuppressed`. Register a
+listener in your application's service provider `boot()` method, for example:
 
-## Development and compatibility
+```php
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+use Lacodix\LaravelNotificationSubscriptions\Events\NotificationSuppressed;
 
-The runtime manifest retains PHP `^7.2.5|^8.0|^8.1` and Laravel 6–11, and adds
-Laravel 12 and 13. These historical runtime constraints are retained for existing
-applications; the modern development harness requires PHP 8.2 or newer and tests
-the following matrix:
+Event::listen(NotificationSuppressed::class, function (NotificationSuppressed $event): void {
+    Log::info('Notification suppressed', [
+        'notification' => get_class($event->notification),
+        'channel' => $event->channel,
+    ]);
+});
+```
 
-| Laravel | Testbench | PHP | Dependency selection |
-| --- | --- | --- | --- |
-| 11 | 9 | 8.2, 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
-| 12 | 10 | 8.2, 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
-| 13 | 11 | 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
+The event exposes `notifiable`, `notification`, `channel` and the original Laravel
+`NotificationSending` event as `event`. Application-listener vetoes alone do not
+emit this package event.
 
-Framework PHP requirements still apply (Laravel 11/12 require PHP 8.2; Laravel 13
-requires PHP 8.3). Historical Laravel 6–10 / PHP 7 lanes are not tested by this CI.
-Lowest lanes select the lowest **resolvable** dependencies under the development
-constraints and Composer's security policy; they do not guarantee each framework's
-initial `.0` release. All lanes require stable dependency releases and retain
-Composer audits and platform checks.
+## Upgrading
 
-Laravel 11 has ended security support. Its isolated CI manifests contain four
-explicit advisory-ID exceptions for debug-page XSS, signed-URL path confusion and
-email-validation CRLF injection (including a duplicate advisory record). Those
-features are not used by these notification tests. The exceptions are documented
-in `.github/scripts/prepare-test-lane.php`; they do not apply to the distributed
-manifest, Laravel 12/13 or other dependencies. New advisories still fail CI.
-Passing a Laravel 11 compatibility lane is not a claim that Laravel 11 is secure;
-use a maintained Laravel version for production.
+When migrating from upstream, remove `liran-co/laravel-notification-subscriptions`
+and install `lacodix/laravel-notification-subscriptions`. Replace imports and manual
+provider references from `LiranCo\NotificationSubscriptions` to
+`Lacodix\LaravelNotificationSubscriptions`. There are no compatibility aliases or
+Composer `replace` declaration for upstream; stored rows, schema and configuration
+stay unchanged. Clear or rebuild Laravel's event cache after changing provider
+references:
+
+```bash
+php artisan event:clear
+# Or rebuild for your deployment:
+php artisan event:cache
+```
+
+When updating an existing Lacodix installation, check the current PHP/Laravel
+requirements above. Global preferences now act as fallback for scoped notifications
+in both directions: existing unsubscribes may suppress delivery, and subscriptions
+may satisfy opt-in. Add an explicit scoped rule to keep a model-specific exception.
+No schema or data migration is required for this preference-resolution change.
+
+## Contributing
+
+From a checkout with the required PHP extensions and Composer:
 
 ```bash
 composer update --prefer-stable
@@ -342,65 +341,40 @@ composer format
 node --test .github/scripts/*.test.cjs
 ```
 
-Tests use Testbench, in-memory SQLite, the package provider/migrations, and Laravel's
-real notification sender/event dispatcher. Subscription vetoes return `false`;
-allowed notifications return `null` so later application listeners can run and veto.
-Quality uses PHP CS Fixer with conservative PSR-2 rules and Larastan at level 4.
-No development lock file is committed for this library.
+Tests use Testbench, in-memory SQLite, the package provider/migrations and Laravel's
+real notification sender with a local recording channel. Quality runs PHP CS Fixer
+and Larastan. No development lock file is committed.
 
-## Publishing
+The 22-lane compatibility matrix covers:
 
-The `Run Unit Tests` workflow runs tests and quality checks with read-only permissions
-for pull requests and pushes to `master` or `ci/**`.
-For a push to this repository's `master`, release runs only after every test lane
-and the reusable quality workflow succeed for that exact commit. Release concurrency
-is serialized. A run skips publication if master has since moved.
+| Laravel | Testbench | PHP | Dependency selection |
+| --- | --- | --- | --- |
+| 11 | 9 | 8.2, 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
+| 12 | 10 | 8.2, 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
+| 13 | 11 | 8.3, 8.4, 8.5 | prefer-stable and prefer-lowest |
 
-Version planning uses pinned `rymndhng/release-on-push-action` in dry-run mode with
-the Lacodix default **minor** bump after the first release. Associated PR labels
-`release:major`, `release:minor` and `release:patch` override that default; use only
-one bump label.
-The PR label `norelease` or `[norelease]` in the pushed commit title skips publishing,
-including the first release. GitHub supplies release notes and `GITHUB_TOKEN` is
-sufficient; only the release job requests `contents: write` and `pull-requests: read`.
+Lowest means the lowest resolvable stable dependencies under the development
+constraints and Composer's security policy, not necessarily a framework's initial
+`.0` version. Laravel 11 tests have explicit advisory exceptions in the isolated
+[CI lane helper](.github/scripts/prepare-test-lane.php); they do not weaken the
+package manifest or imply Laravel 11 security support.
 
-Back-to-back merges can skip older release runs; only the newest commit and its
-associated PR labels choose the next version. Wait for each release, or put the
-highest required bump label (especially `release:major` for breaking changes) on
-the final PR allowed to publish, and do not mark that PR `norelease`.
+Useful source and test entry points:
 
-The fork inherits tags through `v1.8` but initially has no GitHub releases. The action
-normally starts at `0.0.0` in that case, ignoring tags. The small release helper lifts
-every recognized first-release minor, patch or major plan to a **major** above the
-highest inherited stable tag (two-component tags are normalized with patch zero).
-The breaking public namespace rename requires **`v2.0.0`** with current inherited
-tags, even with a patch or minor label. Unknown plans fail closed. Historical tags
-are preserved, and `norelease` still skips the first publication. Once a stable
-GitHub release exists, the action's normal plan applies with the default minor bump.
+| Area | Source |
+| --- | --- |
+| Preference reads/writes and cache handling | [HasNotificationSubscriptions](src/Traits/HasNotificationSubscriptions.php) |
+| Stored rules and exact model scope | [NotificationSubscription](src/Models/NotificationSubscription.php) |
+| Sending veto/bypass and suppression fields | [Listener](src/Listeners/NotificationSendingListener.php), [event](src/Events/NotificationSuppressed.php) |
+| Config, migration and listener registration | [Provider](src/NotificationSubscriptionsServiceProvider.php), [config](config/notification-subscriptions.php), [migrations](database/migrations) |
+| Precedence, isolation, mutations and real sending | [Feature tests](tests/Feature), [fixtures](tests/Fixtures) |
 
-The helper refuses tag collisions or a version at/below inherited stable tags,
-checks the target tag before publication, atomically creates it at the CI-validated
-SHA, and creates a stable GitHub release with generated notes. Unexpected bootstrap
-plans, missing baseline tags, or API errors fail closed. If tag creation succeeds
-but release creation fails, the owner must verify that exact tag's SHA and create
-the missing GitHub release for it before retrying; automation never deletes or
-retargets tags. Manual recovery must preserve existing tags and verify their SHAs;
-never attach a release to a different commit or retarget a tag.
-
-Owner setup still required:
-
-1. Approve and merge these changes; enable GitHub Actions and allow the narrowly
-   scoped release token permissions. Configure branch protection to require the
-   test matrix and quality checks.
-2. Register `lacodix/laravel-notification-subscriptions` on Packagist against this
-   GitHub repository, and configure its GitHub update integration.
-3. Authorize the first master release and verify the resulting tag/release SHA,
-   generated notes and Packagist synchronization. Before authorizing it, use
-   `norelease` on the setup PR if publication should wait.
-
-Local setup does not publish, register Packagist, change GitHub settings or validate
-remote workflow execution. Release automation activates only after an owner-approved
-merge to master; tests and quality checks also run on pull requests and `ci/**` pushes.
+Preserve exact-scope writes, recipient/type isolation, channel/scoped/global
+precedence, zero-query complete loaded reads and fresh mutation lookup. Sending
+suppression returns `false`; allowed/bypassed notifications abstain (`null`) so other
+application listeners can run and veto. Cover behavior changes through the real
+sender as well as direct preference checks.
 
 ## License
-Released under the [MIT](https://choosealicense.com/licenses/mit/) license. See [LICENSE](LICENSE) for more information.
+
+[MIT](LICENSE).

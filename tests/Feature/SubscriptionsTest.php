@@ -80,7 +80,9 @@ class SubscriptionsTest extends TestCase
         $this->assertTrue($user->findSubscription(TestNotification::class, '*', $scope)->model->is($scope));
         $this->assertSame(3, $user->notificationSubscriptions()->model($scope)->count());
         $this->assertSame($user, $user->resetSubscriptions(TestNotification::class, $scope));
-        $this->assertTrue($user->isSubscribed(TestNotification::class, 'mail', $scope));
+        // With no scoped rule remaining, the existing global unsubscribe applies.
+        $this->assertFalse($user->isSubscribed(TestNotification::class, 'mail', $scope));
+        $this->assertNull($user->findSubscription(TestNotification::class, 'mail', $scope));
         $this->assertFalse($user->isSubscribed(TestNotification::class, 'mail'));
         $this->assertFalse($otherUser->isSubscribed(TestNotification::class, 'mail', $scope));
         $this->assertFalse($user->isSubscribed('another notification', 'mail', $scope));

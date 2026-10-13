@@ -5,6 +5,10 @@ namespace Lacodix\LaravelNotificationSubscriptions\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property string $type
+ * @property string $channel
+ * @property string|null $model_type
+ * @property int|string|null $model_id
  * @property \Illuminate\Support\Carbon|null $unsubscribed_at
  */
 class NotificationSubscription extends Model

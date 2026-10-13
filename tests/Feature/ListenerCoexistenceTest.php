@@ -18,7 +18,9 @@ class ListenerCoexistenceTest extends TestCase
         $cases = [];
         foreach (['no trait', 'excluded channel', 'ignore subscriptions', 'subscribed', 'default'] as $path) {
             foreach ([false, true] as $veto) {
-                $cases[$path.($veto ? ' / veto' : ' / allow')] = [$path, $veto];
+                foreach ([false, true] as $loaded) {
+                    $cases[$path.($veto ? ' / veto' : ' / allow').($loaded ? ' / loaded' : ' / cold')] = [$path, $veto, $loaded];
+                }
             }
         }
 
@@ -26,7 +28,7 @@ class ListenerCoexistenceTest extends TestCase
     }
 
     #[DataProvider('allowedPaths')]
-    public function test_later_application_listener_runs_and_can_veto(string $path, bool $veto): void
+    public function test_later_application_listener_runs_and_can_veto(string $path, bool $veto, bool $loaded): void
     {
         $user = $path === 'no trait' ? new PlainUser() : User::query()->create();
         $notification = new TestNotification();
@@ -38,6 +40,10 @@ class ListenerCoexistenceTest extends TestCase
             $user->unsubscribe(TestNotification::class);
         } elseif ($path === 'subscribed') {
             $user->subscribe(TestNotification::class);
+        }
+
+        if ($loaded && $user instanceof User) {
+            $user->load('notificationSubscriptions');
         }
 
         $called = [];
